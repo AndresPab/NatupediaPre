@@ -1,0 +1,44 @@
+Listado de rutas de carpetas para el volumen Windows-SSD
+El número de serie del volumen es B686-67AE
+C:\NATUPEDIA\ASSETS
+|   especies.json
+|   
+\---images
+        albahaca.png
+        aloe_vera.png
+        bromelia.png
+        caballo.png
+        cactus.png
+        camaleon.png
+        canario.png
+        chinchilla.png
+        cobaya.png
+        conejo.png
+        erizo.png
+        ficus.png
+        gardenia.png
+        gato.png
+        gerbil.png
+        girasol.png
+        goldfish.png
+        hamster.png
+        helecho.png
+        huron.png
+        iguana.png
+        jazmin.png
+        lavanda.png
+        loro.png
+        margarita.png
+        mascotas.png
+        menta.png
+        orquidea.png
+        periquito.png
+        perro.png
+        pez_betta.png
+        pez_payaso.png
+        plantas.png
+        raton.png
+        rosa.png
+        tortuga.png
+        tulipan.png
+        

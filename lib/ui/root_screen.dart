@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../models/especie.dart';
 import 'category_screen.dart';
 import 'notifications_screen.dart';
 
@@ -12,7 +14,7 @@ class RootScreen extends StatefulWidget {
 class _RootScreenState extends State<RootScreen> {
   int _currentIndex = 0;
 
-  // Ahora primero va CategoryScreen, luego Notificaciones (Tareas)
+  // Pantallas: primero categorías, luego tareas
   final List<Widget> _screens = const [
     CategoryScreen(),
     NotificationsScreen(),
@@ -21,55 +23,16 @@ class _RootScreenState extends State<RootScreen> {
   @override
   void initState() {
     super.initState();
-    // Precache de AssetImages para evitar parones cuando se muestran por primera vez
+    // Precarga dinámica de imágenes justo después del primer frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _precacheImages();
     });
   }
 
-  void _precacheImages() {
-    const assets = [
-      'assets/images/gato.png',
-      'assets/images/perro.png',
-      'assets/images/loro.png',
-      'assets/images/caballo.png',
-      'assets/images/conejo.png',
-      'assets/images/pez_payaso.png',
-      'assets/images/tortuga.png',
-      'assets/images/camaleon.png',
-      'assets/images/rosa.png',
-      'assets/images/orquidea.png',
-      'assets/images/albahaca.png',
-      'assets/images/helecho.png',
-      'assets/images/cactus.png',
-      'assets/images/aloe_vera.png',
-      'assets/images/girasol.png',
-      'assets/images/tulipan.png',
-      'assets/images/lavanda.png',
-      'assets/images/menta.png',
-      'assets/images/iguana.png',
-      'assets/images/raton.png',
-      'assets/images/gerbil.png',
-      'assets/images/chichilla.png',
-      'assets/images/goldfish.png',
-      'assets/images/pez_betta.png',
-      'assets/images/erizo.png',
-      'assets/images/huron.png',
-      'assets/images/periquito.png',
-      'assets/images/canario.png',
-      'assets/images/cobaya.png',
-      'assets/images/hamster.png',
-      'assets/images/ficus.png',
-      'assets/images/bromelia.png',
-      'assets/images/gardenia.png',
-      'assets/images/jazmin.png',
-      'assets/images/margarita.png',
-      
-      // añade aquí más rutas si agregas nuevos registros
-    ];
-
-    for (var path in assets) {
-      precacheImage(AssetImage(path), context);
+  Future<void> _precacheImages() async {
+    final box = Hive.box<Especie>('especiesbox');
+    for (final especie in box.values) {
+      await precacheImage(AssetImage(especie.imagePath), context);
     }
   }
 

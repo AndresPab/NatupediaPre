@@ -3,29 +3,22 @@ import '../models/reminder.dart';
 
 class ReminderService {
   static const _boxName = 'remindersBox';
+  final Box<Reminder> _box = Hive.box<Reminder>(_boxName);
 
-  Future<Box<Reminder>> _openBox() =>
-      Hive.openBox<Reminder>(_boxName);
+  List<Reminder> getAll() => _box.values.toList();
 
-  Future<List<Reminder>> getAll() async {
-    final box = await _openBox();
-    return box.values.toList();
+  int nextId() {
+    final keys = _box.keys.cast<int>();
+    return keys.isEmpty ? 1 : (keys.reduce((a, b) => a > b ? a : b) + 1);
   }
 
-  Future<int> nextId() async {
-    final box = await _openBox();
-    final keys = box.keys.cast<int>();
-    if (keys.isEmpty) return 1;
-    return keys.reduce((a, b) => a > b ? a : b) + 1;
-  }
-
-  Future<void> add(Reminder reminder) async {
-    final box = await _openBox();
-    await box.put(reminder.id, reminder);
+  Future<void> add(Reminder r) async {
+    await _box.put(r.id, r);
+    print('✅ Reminder added: ${r.id}, total now: ${_box.length}');
   }
 
   Future<void> remove(int id) async {
-    final box = await _openBox();
-    await box.delete(id);
+    await _box.delete(id);
+    print('🗑️ Reminder deleted: $id, total now: ${_box.length}');
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/reminder.dart';
 import '../services/reminder_service.dart';
 
@@ -9,16 +10,17 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final _titleCtrl = TextEditingController();
   final _msgCtrl = TextEditingController();
   final _service = ReminderService();
-
   bool _showForm = false;
-  List<Reminder> _list = [];
   TimeOfDay _pickedTime = TimeOfDay.now();
 
-  // Paleta extensa y suave
   static const List<Color> _availableColors = [
     Color(0xFFFFF8E1),
     Color(0xFFFFF3E0),
@@ -42,17 +44,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     Color(0xFFFFE082),
   ];
 
-  Color _selectedColor = const Color(0xFFFFCC80);
+  Color _selectedColor = _availableColors.first;
 
   @override
-  void initState() {
-    super.initState();
-    _loadList();
-  }
-
-  Future<void> _loadList() async {
-    _list = await _service.getAll();
-    setState(() {});
+  void dispose() {
+    _titleCtrl.dispose();
+    _msgCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _pickTime() async {
@@ -68,8 +66,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final message = _msgCtrl.text.trim();
     if (title.isEmpty || message.isEmpty) return;
 
-    final id = await _service.nextId();
-    final reminder = Reminder(
+    final id = _service.nextId();
+    final rem = Reminder(
       id: id,
       title: title,
       message: message,
@@ -77,7 +75,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       minute: _pickedTime.minute,
       colorValue: _selectedColor.value,
     );
-    await _service.add(reminder);
+    await _service.add(rem);
+    print('After save, box values: ${Hive.box<Reminder>('remindersBox').values}');
 
     _titleCtrl.clear();
     _msgCtrl.clear();
@@ -85,76 +84,86 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       _showForm = false;
       _selectedColor = _availableColors.first;
     });
-    await _loadList();
   }
 
-  Future<void> _delete(Reminder r) async {
-    await _service.remove(r.id);
-    await _loadList();
+  Future<void> _delete(int id) async {
+    await _service.remove(id);
   }
 
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _msgCtrl.dispose();
-    super.dispose();
-  }
-
-  Color _textColorForBackground(Color bg) {
-    // Si la luminancia es alta, usar texto oscuro; si baja, texto claro
-    return bg.computeLuminance() > 0.7 ? Colors.black87 : Colors.white;
-  }
+  Color _textColorForBackground(Color bg) =>
+      bg.computeLuminance() > 0.7 ? Colors.black87 : Colors.white;
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Recordatorios')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Lista de notas
-            if (_list.isNotEmpty) ...[
-              const Text('Tus Tareas', style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _list.length,
-                  itemBuilder: (_, i) {
-                    final r = _list[i];
-                    final bg = Color(r.colorValue);
-                    final textColor = _textColorForBackground(bg);
-                    return Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ListTile(
-                        title: Text(r.title, style: TextStyle(color: textColor)),
-                        subtitle: Text(
-                          '${r.hour.toString().padLeft(2, '0')}:'
-                          '${r.minute.toString().padLeft(2, '0')} ‧ ${r.message}',
-                          style: TextStyle(color: textColor.withOpacity(0.9)),
+            // La lista ocupa todo el espacio restante
+            Expanded(
+              child: ValueListenableBuilder<Box<Reminder>>(
+                valueListenable:
+                    Hive.box<Reminder>('remindersBox').listenable(),
+                builder: (_, box, __) {
+                  final reminders = box.values.toList();
+                  if (reminders.isEmpty) {
+                    return const Center(
+                        child: Text('No tienes tareas pendientes'));
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Tus Tareas',
+                          style: TextStyle(fontSize: 18)),
+                      const SizedBox(height: 8),
+                      // El ListView ahora está contenido en un Expanded
+                      Expanded(
+                        child: RepaintBoundary(
+                          child: ListView.builder(
+                            key: const PageStorageKey('tareas'),
+                            itemCount: reminders.length,
+                            itemExtent: 80,
+                            itemBuilder: (_, i) {
+                              final r = reminders[i];
+                              final bg = Color(r.colorValue);
+                              final fg = _textColorForBackground(bg);
+                              return Container(
+                                margin:
+                                    const EdgeInsets.symmetric(vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: bg,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ListTile(
+                                  title: Text(r.title,
+                                      style: TextStyle(color: fg)),
+                                  subtitle: Text(
+                                    '${r.hour.toString().padLeft(2, '0')}:'
+                                    '${r.minute.toString().padLeft(2, '0')} ‧ ${r.message}',
+                                    style: TextStyle(
+                                        color: fg.withOpacity(0.9)),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: Icon(Icons.delete, color: fg),
+                                    onPressed: () => _delete(r.id),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                        trailing: IconButton(
-                          icon: Icon(Icons.delete, color: textColor),
-                          onPressed: () => _delete(r),
-                        ),
                       ),
-                    );
-                  },
-                ),
+                    ],
+                  );
+                },
               ),
-            ] else ...[
-              const Expanded(
-                child: Center(child: Text('No tienes tareas pendientes')),
-              ),
-            ],
+            ),
 
             const SizedBox(height: 12),
 
-            // Formulario de nueva nota
             if (_showForm)
               _buildForm()
             else
@@ -199,12 +208,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
           const Text('Color:'),
           const SizedBox(height: 8),
-
-          // Selector de color horizontal, scrollable y compacto
           SizedBox(
             height: 56,
             child: ListView.separated(
@@ -214,9 +220,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               itemBuilder: (_, i) {
                 final color = _availableColors[i];
                 final isSelected = color == _selectedColor;
-                final border = isSelected
-                    ? Border.all(width: 3, color: Colors.grey.shade700)
-                    : null;
                 return GestureDetector(
                   onTap: () => setState(() => _selectedColor = color),
                   child: Container(
@@ -225,18 +228,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
-                      border: border,
+                      border: isSelected
+                          ? Border.all(width: 3, color: Colors.grey.shade700)
+                          : null,
                     ),
                     child: isSelected
                         ? Icon(Icons.check,
-                            size: 20, color: _textColorForBackground(color))
+                            size: 20,
+                            color: _textColorForBackground(color))
                         : null,
                   ),
                 );
               },
             ),
           ),
-
           const SizedBox(height: 16),
           Row(
             children: [

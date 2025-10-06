@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'models/especie.dart';
-import 'models/reminder.dart';        // ← IMPORTA tu modelo Reminder
+import 'models/reminder.dart';
 import 'services/seed_service.dart';
 import 'ui/root_screen.dart';
 
@@ -13,15 +13,20 @@ Future<void> main() async {
   // 1. Inicializa Hive
   await Hive.initFlutter();
 
-  // 2. Registra TODOS los adapters que uses
+  // 2. Registra adapters
   Hive.registerAdapter(EspecieAdapter());
   Hive.registerAdapter(ReminderAdapter());
 
-  // 3. Abre las cajas que vas a usar (el nombre debe coincidir con ReminderService)
+  // 3. Abre las cajas
   await Hive.openBox<Especie>('especiesbox');
-  await Hive.openBox<Reminder>('remindersBox'); // ← revisa que coincida el nombre
+  await Hive.openBox<Reminder>('remindersBox');
 
-  // 4. Si tu SeedService solo llena especies, llámalo ahora
+  // Verificación de cajas abiertas
+  print("Hive cajas abiertas: "
+      "especiesbox=${Hive.isBoxOpen('especiesbox')}, "
+      "remindersBox=${Hive.isBoxOpen('remindersBox')}");
+
+  // 4. Poblado inicial de especies
   await SeedService().seed();
 
   // 5. Arranca la app

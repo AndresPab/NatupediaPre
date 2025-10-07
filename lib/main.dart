@@ -1,3 +1,5 @@
+// lib/main.dart
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -5,7 +7,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'models/especie.dart';
 import 'models/reminder.dart';
 import 'services/seed_service.dart';
-import 'ui/root_screen.dart';
+import 'ui/splash_screen.dart';    // ← Asegúrate de que esta línea esté presente
+// import 'ui/root_screen.dart';  // ya no es el home directo
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,12 +20,6 @@ Future<void> main() async {
   await Hive.openBox<Especie>('especiesbox');
   await Hive.openBox<Reminder>('remindersBox');
 
-  print(
-    "Hive cajas abiertas: "
-    "especiesbox=${Hive.isBoxOpen('especiesbox')}, "
-    "remindersBox=${Hive.isBoxOpen('remindersBox')}"
-  );
-
   await SeedService().seed();
   runApp(const MyApp());
 }
@@ -31,7 +28,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   static const Color pastelOrange = Color(0xFFFFCC80);
-  static const Color pastelBlue = Color(0xFF81D4FA);
+  static const Color pastelBlue   = Color(0xFF81D4FA);
 
   @override
   Widget build(BuildContext context) {
@@ -40,16 +37,14 @@ class MyApp extends StatelessWidget {
       title: 'Natupedia',
       debugShowCheckedModeBanner: false,
       theme: base.copyWith(
-        colorScheme: base.colorScheme.copyWith(
-          primary: pastelBlue,
-          secondary: pastelOrange,
-        ),
+        colorScheme: base.colorScheme
+            .copyWith(primary: pastelBlue, secondary: pastelOrange),
         scaffoldBackgroundColor: Colors.white,
+        textTheme: GoogleFonts.latoTextTheme(base.textTheme),
         appBarTheme: AppBarTheme(
           backgroundColor: pastelBlue,
-          centerTitle: true,
-          elevation: 0,
           foregroundColor: Colors.black,
+          elevation: 0,
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
@@ -77,9 +72,8 @@ class MyApp extends StatelessWidget {
             borderSide: BorderSide(color: pastelBlue),
           ),
         ),
-        textTheme: GoogleFonts.latoTextTheme(base.textTheme),
       ),
-      home: RootScreen(), // removed `const` so RootScreen is resolved at runtime
+      home: const SplashScreen(),  // ← aquí sí existe SplashScreen
     );
   }
 }

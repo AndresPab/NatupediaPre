@@ -106,6 +106,8 @@ class _ReminderScreenState extends State<ReminderScreen>
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
+      // Asegura que el contenido se reajuste cuando aparezca el teclado
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Recordatorios')),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -203,7 +205,10 @@ class _ReminderScreenState extends State<ReminderScreen>
         onPressed: () => setState(() => _showForm = true),
       );
 
-  Widget _buildForm() => Column(
+  Widget _buildForm() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
@@ -276,6 +281,10 @@ class _ReminderScreenState extends State<ReminderScreen>
               ),
             ],
           ),
+          // Espacio que ajusta la vista cuando aparece el teclado
+          SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
         ],
-      );
+      ),
+    );
+  }
 }

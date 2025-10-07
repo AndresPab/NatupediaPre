@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/especie.dart';
 import 'category_screen.dart';
-import 'notifications_screen.dart';
+import 'reminder_screen.dart';
 
 class RootScreen extends StatefulWidget {
   const RootScreen({super.key});
@@ -17,7 +17,7 @@ class _RootScreenState extends State<RootScreen> {
   // Pantallas: primero categorías, luego tareas
   final List<Widget> _screens = const [
     CategoryScreen(),
-    NotificationsScreen(),
+    ReminderScreen(),
   ];
 
   @override

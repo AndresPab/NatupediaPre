@@ -1,16 +1,17 @@
+// lib/ui/reminder_screen.dart
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/reminder.dart';
 import '../services/reminder_service.dart';
 
-class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+class ReminderScreen extends StatefulWidget {
+  const ReminderScreen({super.key});
 
   @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
+  State<ReminderScreen> createState() => _ReminderScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen>
+class _ReminderScreenState extends State<ReminderScreen>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
@@ -67,7 +68,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     if (title.isEmpty || message.isEmpty) return;
 
     final id = _service.nextId();
-    final rem = Reminder(
+    final r = Reminder(
       id: id,
       title: title,
       message: message,
@@ -75,8 +76,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       minute: _pickedTime.minute,
       colorValue: _selectedColor.value,
     );
-    await _service.add(rem);
-    print('After save, box values: ${Hive.box<Reminder>('remindersBox').values}');
+    await _service.add(r);
 
     _titleCtrl.clear();
     _msgCtrl.clear();
@@ -96,20 +96,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Recordatorios')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // La lista ocupa todo el espacio restante
             Expanded(
               child: ValueListenableBuilder<Box<Reminder>>(
                 valueListenable:
                     Hive.box<Reminder>('remindersBox').listenable(),
                 builder: (_, box, __) {
-                  final reminders = box.values.toList();
-                  if (reminders.isEmpty) {
+                  final items = box.values.toList();
+                  if (items.isEmpty) {
                     return const Center(
                         child: Text('No tienes tareas pendientes'));
                   }
@@ -119,41 +119,38 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       const Text('Tus Tareas',
                           style: TextStyle(fontSize: 18)),
                       const SizedBox(height: 8),
-                      // El ListView ahora está contenido en un Expanded
                       Expanded(
-                        child: RepaintBoundary(
-                          child: ListView.builder(
-                            key: const PageStorageKey('tareas'),
-                            itemCount: reminders.length,
-                            itemExtent: 80,
-                            itemBuilder: (_, i) {
-                              final r = reminders[i];
-                              final bg = Color(r.colorValue);
-                              final fg = _textColorForBackground(bg);
-                              return Container(
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: bg,
-                                  borderRadius: BorderRadius.circular(8),
+                        child: ListView.builder(
+                          key: const PageStorageKey('tareas'),
+                          itemCount: items.length,
+                          itemExtent: 80,
+                          itemBuilder: (_, i) {
+                            final r = items[i];
+                            final bg = Color(r.colorValue);
+                            final fg = _textColorForBackground(bg);
+                            return Container(
+                              margin:
+                                  const EdgeInsets.symmetric(vertical: 6),
+                              decoration: BoxDecoration(
+                                color: bg,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ListTile(
+                                title: Text(r.title,
+                                    style: TextStyle(color: fg)),
+                                subtitle: Text(
+                                  '${r.hour.toString().padLeft(2, '0')}:'
+                                  '${r.minute.toString().padLeft(2, '0')} ‧ ${r.message}',
+                                  style: TextStyle(
+                                      color: fg.withOpacity(0.9)),
                                 ),
-                                child: ListTile(
-                                  title: Text(r.title,
-                                      style: TextStyle(color: fg)),
-                                  subtitle: Text(
-                                    '${r.hour.toString().padLeft(2, '0')}:'
-                                    '${r.minute.toString().padLeft(2, '0')} ‧ ${r.message}',
-                                    style: TextStyle(
-                                        color: fg.withOpacity(0.9)),
-                                  ),
-                                  trailing: IconButton(
-                                    icon: Icon(Icons.delete, color: fg),
-                                    onPressed: () => _delete(r.id),
-                                  ),
+                                trailing: IconButton(
+                                  icon: Icon(Icons.delete, color: fg),
+                                  onPressed: () => _delete(r.id),
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -161,9 +158,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 },
               ),
             ),
-
             const SizedBox(height: 12),
-
             if (_showForm)
               _buildForm()
             else

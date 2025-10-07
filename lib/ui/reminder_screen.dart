@@ -1,4 +1,5 @@
 // lib/ui/reminder_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/reminder.dart';
@@ -59,7 +60,9 @@ class _ReminderScreenState extends State<ReminderScreen>
       context: context,
       initialTime: _pickedTime,
     );
-    if (t != null) setState(() => _pickedTime = t);
+    if (t != null) {
+      setState(() => _pickedTime = t);
+    }
   }
 
   Future<void> _save() async {
@@ -75,6 +78,7 @@ class _ReminderScreenState extends State<ReminderScreen>
       hour: _pickedTime.hour,
       minute: _pickedTime.minute,
       colorValue: _selectedColor.value,
+      completed: false,
     );
     await _service.add(r);
 
@@ -90,19 +94,24 @@ class _ReminderScreenState extends State<ReminderScreen>
     await _service.remove(id);
   }
 
+  Future<void> _toggleCompleted(int id, bool? value) async {
+    if (value == null) return;
+    await _service.toggleCompleted(id, value);
+  }
+
   Color _textColorForBackground(Color bg) =>
       bg.computeLuminance() > 0.7 ? Colors.black87 : Colors.white;
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-
     return Scaffold(
       appBar: AppBar(title: const Text('Recordatorios')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Lista de recordatorios
             Expanded(
               child: ValueListenableBuilder<Box<Reminder>>(
                 valueListenable:
@@ -136,13 +145,29 @@ class _ReminderScreenState extends State<ReminderScreen>
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: ListTile(
-                                title: Text(r.title,
-                                    style: TextStyle(color: fg)),
+                                leading: Checkbox(
+                                  value: r.completed,
+                                  onChanged: (val) =>
+                                      _toggleCompleted(r.id, val),
+                                ),
+                                title: Text(
+                                  r.title,
+                                  style: TextStyle(
+                                    color: fg,
+                                    decoration: r.completed
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                                ),
                                 subtitle: Text(
                                   '${r.hour.toString().padLeft(2, '0')}:'
                                   '${r.minute.toString().padLeft(2, '0')} ‧ ${r.message}',
                                   style: TextStyle(
-                                      color: fg.withOpacity(0.9)),
+                                    color: fg.withOpacity(0.9),
+                                    decoration: r.completed
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
                                 ),
                                 trailing: IconButton(
                                   icon: Icon(Icons.delete, color: fg),
@@ -158,7 +183,10 @@ class _ReminderScreenState extends State<ReminderScreen>
                 },
               ),
             ),
+
             const SizedBox(height: 12),
+
+            // Botón o formulario
             if (_showForm)
               _buildForm()
             else

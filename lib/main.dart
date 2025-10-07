@@ -10,26 +10,20 @@ import 'ui/root_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Inicializa Hive
   await Hive.initFlutter();
-
-  // 2. Registra adapters
   Hive.registerAdapter(EspecieAdapter());
   Hive.registerAdapter(ReminderAdapter());
 
-  // 3. Abre las cajas
   await Hive.openBox<Especie>('especiesbox');
   await Hive.openBox<Reminder>('remindersBox');
 
-  // Verificación de cajas abiertas
-  print("Hive cajas abiertas: "
-      "especiesbox=${Hive.isBoxOpen('especiesbox')}, "
-      "remindersBox=${Hive.isBoxOpen('remindersBox')}");
+  print(
+    "Hive cajas abiertas: "
+    "especiesbox=${Hive.isBoxOpen('especiesbox')}, "
+    "remindersBox=${Hive.isBoxOpen('remindersBox')}"
+  );
 
-  // 4. Poblado inicial de especies
   await SeedService().seed();
-
-  // 5. Arranca la app
   runApp(const MyApp());
 }
 
@@ -37,7 +31,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   static const Color pastelOrange = Color(0xFFFFCC80);
-  static const Color pastelBlue   = Color(0xFF81D4FA);
+  static const Color pastelBlue = Color(0xFF81D4FA);
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +79,7 @@ class MyApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.latoTextTheme(base.textTheme),
       ),
-      home: const RootScreen(),
+      home: RootScreen(), // removed `const` so RootScreen is resolved at runtime
     );
   }
 }

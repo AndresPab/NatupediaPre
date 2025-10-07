@@ -21,4 +21,12 @@ class ReminderService {
     await _box.delete(id);
     print('🗑️ Reminder deleted: $id, total now: ${_box.length}');
   }
+
+  Future<void> toggleCompleted(int id, bool completed) async {
+    final existing = _box.get(id);
+    if (existing == null) return;
+    final updated = existing.copyWith(completed: completed);
+    await _box.put(id, updated);
+    print('🔄 Reminder $id completed set to $completed');
+  }
 }

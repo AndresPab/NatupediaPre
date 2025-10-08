@@ -33,7 +33,7 @@ jobs:
       - name: 4. Instalar Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.10.5'
+          channel: 'stable'
 
       - name: 5. Flutter pub get
         run: flutter pub get
@@ -42,7 +42,6 @@ jobs:
         run: flutter build apk --release
 
       - name: 7. Subir APK como artefacto
-        # Actualizado a la versión 4 para evitar deprecación
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk

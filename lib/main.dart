@@ -3,6 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:natupedia/services/notification_service.dart';
+
 
 import 'models/especie.dart';
 import 'models/reminder.dart';
@@ -22,6 +26,9 @@ Future<void> main() async {
 
   await Hive.openBox<Especie>('especiesBox');
   await Hive.openBox<Reminder>('remindersBox');
+
+  tz.initializeTimeZones();
+  await NotificationService().init();
 
   await SeedService().seed();
   runApp(const MyApp());

@@ -1,9 +1,15 @@
+// lib/services/reminder_service.dart
+
 import 'package:hive/hive.dart';
+import 'package:timezone/timezone.dart' as tz;
+
 import '../models/reminder.dart';
+import 'notification_service.dart';
 
 class ReminderService {
   static const _boxName = 'remindersBox';
   final Box<Reminder> _box = Hive.box<Reminder>(_boxName);
+  final _notifier = NotificationService();
 
   List<Reminder> getAll() => _box.values.toList();
 
@@ -14,12 +20,31 @@ class ReminderService {
 
   Future<void> add(Reminder r) async {
     await _box.put(r.id, r);
-    print('✅ Reminder added: ${r.id}, total now: ${_box.length}');
+    // Programa la notificación
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      r.hour,
+      r.minute,
+    );
+    // Si la hora ya pasó hoy, programa para mañana
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    await _notifier.scheduleNotification(
+      id: r.id,
+      title: r.title,
+      scheduledDate: scheduled,
+    );
   }
 
   Future<void> remove(int id) async {
     await _box.delete(id);
-    print('🗑️ Reminder deleted: $id, total now: ${_box.length}');
+    // Cancela la notificación
+    await _notifier.cancelNotification(id);
   }
 
   Future<void> toggleCompleted(int id, bool completed) async {
@@ -27,6 +52,9 @@ class ReminderService {
     if (existing == null) return;
     final updated = existing.copyWith(completed: completed);
     await _box.put(id, updated);
-    print('🔄 Reminder $id completed set to $completed');
+    // Si lo completó antes de la hora, también cancelar notificación
+    if (completed) {
+      await _notifier.cancelNotification(id);
+    }
   }
 }

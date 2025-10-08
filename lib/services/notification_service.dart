@@ -12,9 +12,16 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
+  /// Inicializa los settings de Android y iOS
   Future<void> init() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings();
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
     await _plugin.initialize(
       const InitializationSettings(
         android: androidSettings,
@@ -23,31 +30,38 @@ class NotificationService {
     );
   }
 
+  /// Programa una notificación única en [scheduledDate] (zona horaria local).
   Future<void> scheduleNotification({
     required int id,
     required String title,
+    String? body,
     required tz.TZDateTime scheduledDate,
   }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'natupedia_channel',
+      'Recordatorios Natupedia',
+      channelDescription: 'Alertas de tareas',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const iosDetails = DarwinNotificationDetails();
+
     await _plugin.zonedSchedule(
       id,
       title,
-      null, // sin body
+      body,
       scheduledDate,
       const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'natupedia_channel',       // id del canal
-          'Recordatorios',          // nombre visible
-          channelDescription: 'Alertas de tareas',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
+        android: androidDetails,
+        iOS: iosDetails,
       ),
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      androidAllowWhileIdle: true,
+      // Parametro obligatorio desde la v19:
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      // Si en el futuro necesitas recurrencia, puedes usar:
+      // matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
+  /// Cancela la notificación con [id].
   Future<void> cancelNotification(int id) => _plugin.cancel(id);
 }

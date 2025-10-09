@@ -2,8 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:timezone/timezone.dart' as tz;
+
 import '../models/reminder.dart';
-import '../services/reminder_service.dart';
+import '../services/reminder_service.dart';        // ← import correcto
+import '../services/notification_service.dart';    // ← import correcto
 
 class ReminderScreen extends StatefulWidget {
   const ReminderScreen({super.key});
@@ -19,7 +22,7 @@ class _ReminderScreenState extends State<ReminderScreen>
 
   final _titleCtrl = TextEditingController();
   final _msgCtrl = TextEditingController();
-  final _service = ReminderService();
+  final _service = ReminderService();             // ← ahora sí encuentra la clase
   bool _showForm = false;
   TimeOfDay _pickedTime = TimeOfDay.now();
 
@@ -46,7 +49,15 @@ class _ReminderScreenState extends State<ReminderScreen>
     Color(0xFFFFE082),
   ];
 
-  Color _selectedColor = _availableColors.first;
+  late Color _selectedColor;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedColor = _availableColors.isNotEmpty
+        ? _availableColors.first
+        : Colors.blue;
+  }
 
   @override
   void dispose() {
@@ -60,9 +71,7 @@ class _ReminderScreenState extends State<ReminderScreen>
       context: context,
       initialTime: _pickedTime,
     );
-    if (t != null) {
-      setState(() => _pickedTime = t);
-    }
+    if (t != null) setState(() => _pickedTime = t);
   }
 
   Future<void> _save() async {
@@ -90,13 +99,22 @@ class _ReminderScreenState extends State<ReminderScreen>
     });
   }
 
-  Future<void> _delete(int id) async {
-    await _service.remove(id);
+  Future<void> _delete(int id) async => _service.remove(id);
+
+  Future<void> _toggleCompleted(int id, bool? val) async {
+    if (val != null) await _service.toggleCompleted(id, val);
   }
 
-  Future<void> _toggleCompleted(int id, bool? value) async {
-    if (value == null) return;
-    await _service.toggleCompleted(id, value);
+  Future<void> _testNotification() async {
+    final now = tz.TZDateTime.now(tz.local);
+    print('agendando notificacion');
+    // Llamamos aquí SIN androidScheduleMode, tu NotificationService ya lo incluye
+    await NotificationService().scheduleNotification(
+      id: 999,
+      title: 'Prueba en 5 s',
+      body: 'Si la ves, funciona 👍',
+      scheduledDate: now.add(const Duration(seconds: 5)),
+    );
   }
 
   Color _textColorForBackground(Color bg) =>
@@ -106,14 +124,12 @@ class _ReminderScreenState extends State<ReminderScreen>
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      // Asegura que el contenido se reajuste cuando aparezca el teclado
       resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Recordatorios')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Lista de recordatorios
             Expanded(
               child: ValueListenableBuilder<Box<Reminder>>(
                 valueListenable:
@@ -122,7 +138,8 @@ class _ReminderScreenState extends State<ReminderScreen>
                   final items = box.values.toList();
                   if (items.isEmpty) {
                     return const Center(
-                        child: Text('No tienes tareas pendientes'));
+                      child: Text('No tienes tareas pendientes'),
+                    );
                   }
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,8 +166,8 @@ class _ReminderScreenState extends State<ReminderScreen>
                               child: ListTile(
                                 leading: Checkbox(
                                   value: r.completed,
-                                  onChanged: (val) =>
-                                      _toggleCompleted(r.id, val),
+                                  onChanged: (v) =>
+                                      _toggleCompleted(r.id, v),
                                 ),
                                 title: Text(
                                   r.title,
@@ -188,11 +205,16 @@ class _ReminderScreenState extends State<ReminderScreen>
 
             const SizedBox(height: 12),
 
-            // Botón o formulario
             if (_showForm)
               _buildForm()
             else
-              _buildAddButton(),
+              Column(
+                children: [
+                  _buildAddButton(),
+                  const SizedBox(height: 8),
+                  
+                ],
+              ),
           ],
         ),
       ),
@@ -205,86 +227,83 @@ class _ReminderScreenState extends State<ReminderScreen>
         onPressed: () => setState(() => _showForm = true),
       );
 
-  Widget _buildForm() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _titleCtrl,
-            decoration: const InputDecoration(labelText: 'Título'),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _msgCtrl,
-            decoration: const InputDecoration(labelText: 'Descripción'),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Text('Hora:'),
-              const SizedBox(width: 12),
-              Text(
-                '${_pickedTime.hour.toString().padLeft(2, '0')}:'
-                '${_pickedTime.minute.toString().padLeft(2, '0')}',
-              ),
-              const SizedBox(width: 16),
-              OutlinedButton(
-                onPressed: _pickTime,
-                child: const Text('Seleccionar Hora'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text('Color:'),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 56,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _availableColors.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final color = _availableColors[i];
-                final isSelected = color == _selectedColor;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedColor = color),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: isSelected
-                          ? Border.all(width: 3, color: Colors.grey.shade700)
+  Widget _buildForm() => SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _titleCtrl,
+              decoration: const InputDecoration(labelText: 'Título'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _msgCtrl,
+              decoration: const InputDecoration(labelText: 'Descripción'),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text('Hora:'),
+                const SizedBox(width: 12),
+                Text(
+                  '${_pickedTime.hour.toString().padLeft(2, '0')}:'
+                  '${_pickedTime.minute.toString().padLeft(2, '0')}',
+                ),
+                const SizedBox(width: 16),
+                OutlinedButton(
+                  onPressed: _pickTime,
+                  child: const Text('Seleccionar Hora'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text('Color:'),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 56,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _availableColors.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final color = _availableColors[i];
+                  final isSelected = color == _selectedColor;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedColor = color),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: isSelected
+                            ? Border.all(width: 3, color: Colors.grey.shade700)
+                            : null,
+                      ),
+                      child: isSelected
+                          ? Icon(Icons.check,
+                              size: 20,
+                              color: _textColorForBackground(color))
                           : null,
                     ),
-                    child: isSelected
-                        ? Icon(Icons.check,
-                            size: 20,
-                            color: _textColorForBackground(color))
-                        : null,
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              ElevatedButton(onPressed: _save, child: const Text('Guardar')),
-              const SizedBox(width: 12),
-              OutlinedButton(
-                onPressed: () => setState(() => _showForm = false),
-                child: const Text('Cancelar'),
+                  );
+                },
               ),
-            ],
-          ),
-          // Espacio que ajusta la vista cuando aparece el teclado
-          SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
-        ],
-      ),
-    );
-  }
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                ElevatedButton(onPressed: _save, child: const Text('Guardar')),
+                const SizedBox(width: 12),
+                OutlinedButton(
+                  onPressed: () => setState(() => _showForm = false),
+                  child: const Text('Cancelar'),
+                ),
+              ],
+            ),
+            SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+          ],
+        ),
+      );
 }

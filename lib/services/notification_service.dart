@@ -1,5 +1,6 @@
 // lib/services/notification_service.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -12,11 +13,10 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  /// Inicializa los settings de Android y iOS
+  /// Inicializa los settings de Android y iOS y crea el canal en Android.
   Future<void> init() async {
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
@@ -24,13 +24,30 @@ class NotificationService {
 
     await _plugin.initialize(
       const InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
+        android: androidInit,
+        iOS: iosInit,
       ),
     );
+
+    // Crea el canal de notificaciones Android
+    const channel = AndroidNotificationChannel(
+      'natupedia_channel',
+      'Recordatorios Natupedia',
+      description: 'Alertas de tareas',
+      importance: Importance.max,
+    );
+
+    final androidPlatform = _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidPlatform != null) {
+      await androidPlatform.createNotificationChannel(channel);
+      debugPrint('✅ Canal natupedia_channel creado');
+    }
   }
 
-  /// Programa una notificación única en [scheduledDate] (zona horaria local).
+  /// Programa una notificación única en [scheduledDate].
   Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -44,24 +61,29 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
     );
+
     const iosDetails = DarwinNotificationDetails();
 
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledDate,
-      const NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      ),
-      // Parametro obligatorio desde la v19:
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      // Si en el futuro necesitas recurrencia, puedes usar:
-      // matchDateTimeComponents: DateTimeComponents.time,
-    );
+    try {
+      debugPrint('[🔔] Intentando agendar notificación $id a $scheduledDate');
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        const NotificationDetails(
+          android: androidDetails,
+          iOS: iosDetails,
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+      debugPrint('[🔔] scheduleNotification completado para $id');
+    } catch (e, stack) {
+      debugPrint('[❌] Error en scheduleNotification: $e\n$stack');
+    }
   }
 
   /// Cancela la notificación con [id].
-  Future<void> cancelNotification(int id) => _plugin.cancel(id);
+  Future<void> cancelNotification(int id) =>
+      _plugin.cancel(id);
 }

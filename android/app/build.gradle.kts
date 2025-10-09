@@ -9,20 +9,19 @@ plugins {
 android {
     namespace = "com.example.natupedia"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion  = flutter.ndkVersion
 
     defaultConfig {
         applicationId = "com.example.natupedia"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk        = flutter.minSdkVersion
+        targetSdk     = flutter.targetSdkVersion
+        versionCode   = flutter.versionCode
+        versionName   = flutter.versionName
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-        // Habilita library desugaring
+        sourceCompatibility        = JavaVersion.VERSION_1_8
+        targetCompatibility        = JavaVersion.VERSION_1_8
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -30,15 +29,25 @@ android {
         jvmTarget = "1.8"
     }
 
+    // Deshabilita la compresión de PNGs en AAPT2
+    aaptOptions {
+        additionalParameters += listOf("-0", "png")
+    }
+
     buildTypes {
-        release {
+        debug {
             signingConfig = signingConfigs.getByName("debug")
+        }
+        release {
+            signingConfig     = signingConfigs.getByName("debug")
+            isMinifyEnabled   = false
+            isShrinkResources = false
         }
     }
 }
 
 dependencies {
-    // Desugaring core Java 8+ APIs
+    // Para desugar APIs de Java 8+
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 

@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest 
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.natupedia">
 
-    <!-- Permiso necesario en Android 13+ -->
+    <!-- Permisos Android 13+ y reinicio de dispositivo -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-
-    <!-- Para alarmas exactas con AlarmManager en Android 13+ -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+
+    <!-- Necesario para que ciertos plugins lancen intents -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
 
     <application
         android:name="${applicationName}"
@@ -37,20 +42,18 @@
             </intent-filter>
         </activity>
 
-        <!-- Opt-in explícito a Embedding V2 -->
+        <!-- Opt-in Embedding V2 -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
 
-        <!-- Alarm Manager Service y Receivers -->
+        <!-- AlarmManager Service y Receivers -->
         <service
             android:name="dev.fluttercommunity.plus.androidalarmmanager.AlarmService"
             android:exported="false"/>
-
         <receiver
             android:name="dev.fluttercommunity.plus.androidalarmmanager.AlarmBroadcastReceiver"
             android:exported="true"/>
-
         <receiver
             android:name="dev.fluttercommunity.plus.androidalarmmanager.RebootBroadcastReceiver"
             android:exported="true">
@@ -58,13 +61,19 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
+
+        <!-- flutter_local_notifications: receivers programadas -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="true"/>
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
     </application>
 
-    <!-- Necesario para que Text Processing Plugin funcione correctamente -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
 </manifest>

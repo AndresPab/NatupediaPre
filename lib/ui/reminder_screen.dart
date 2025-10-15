@@ -1,15 +1,16 @@
 // lib/ui/reminder_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/reminder.dart';
-import '../services/reminder_service.dart';        // ← import correcto
-import '../services/notification_service.dart';    // ← import correcto
+import '../services/reminder_service.dart';
+import '../services/notification_service.dart';
 
 class ReminderScreen extends StatefulWidget {
-  const ReminderScreen({super.key});
+  const ReminderScreen({Key? key}) : super(key: key);
 
   @override
   State<ReminderScreen> createState() => _ReminderScreenState();
@@ -20,9 +21,9 @@ class _ReminderScreenState extends State<ReminderScreen>
   @override
   bool get wantKeepAlive => true;
 
-  final _titleCtrl = TextEditingController();
-  final _msgCtrl = TextEditingController();
-  final _service = ReminderService();             // ← ahora sí encuentra la clase
+  final TextEditingController _titleCtrl = TextEditingController();
+  final TextEditingController _msgCtrl = TextEditingController();
+  final ReminderService _service = ReminderService();
   bool _showForm = false;
   TimeOfDay _pickedTime = TimeOfDay.now();
 
@@ -54,9 +55,7 @@ class _ReminderScreenState extends State<ReminderScreen>
   @override
   void initState() {
     super.initState();
-    _selectedColor = _availableColors.isNotEmpty
-        ? _availableColors.first
-        : Colors.blue;
+    _selectedColor = _availableColors.first;
   }
 
   @override
@@ -67,11 +66,13 @@ class _ReminderScreenState extends State<ReminderScreen>
   }
 
   Future<void> _pickTime() async {
-    final t = await showTimePicker(
+    final picked = await showTimePicker(
       context: context,
       initialTime: _pickedTime,
     );
-    if (t != null) setState(() => _pickedTime = t);
+    if (picked != null) {
+      setState(() => _pickedTime = picked);
+    }
   }
 
   Future<void> _save() async {
@@ -80,7 +81,7 @@ class _ReminderScreenState extends State<ReminderScreen>
     if (title.isEmpty || message.isEmpty) return;
 
     final id = _service.nextId();
-    final r = Reminder(
+    final reminder = Reminder(
       id: id,
       title: title,
       message: message,
@@ -89,7 +90,8 @@ class _ReminderScreenState extends State<ReminderScreen>
       colorValue: _selectedColor.value,
       completed: false,
     );
-    await _service.add(r);
+
+    await _service.add(reminder);
 
     _titleCtrl.clear();
     _msgCtrl.clear();
@@ -99,16 +101,17 @@ class _ReminderScreenState extends State<ReminderScreen>
     });
   }
 
-  Future<void> _delete(int id) async => _service.remove(id);
+  Future<void> _delete(int id) async {
+    await _service.remove(id);
+  }
 
-  Future<void> _toggleCompleted(int id, bool? val) async {
-    if (val != null) await _service.toggleCompleted(id, val);
+  Future<void> _toggleCompleted(int id, bool? value) async {
+    if (value == null) return;
+    await _service.toggleCompleted(id, value);
   }
 
   Future<void> _testNotification() async {
     final now = tz.TZDateTime.now(tz.local);
-    print('agendando notificacion');
-    // Llamamos aquí SIN androidScheduleMode, tu NotificationService ya lo incluye
     await NotificationService().scheduleNotification(
       id: 999,
       title: 'Prueba en 5 s',
@@ -126,184 +129,206 @@ class _ReminderScreenState extends State<ReminderScreen>
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Recordatorios')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Expanded(
-              child: ValueListenableBuilder<Box<Reminder>>(
-                valueListenable:
-                    Hive.box<Reminder>('remindersBox').listenable(),
-                builder: (_, box, __) {
-                  final items = box.values.toList();
-                  if (items.isEmpty) {
-                    return const Center(
-                      child: Text('No tienes tareas pendientes'),
-                    );
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Tus Tareas',
-                          style: TextStyle(fontSize: 18)),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: ListView.builder(
-                          key: const PageStorageKey('tareas'),
-                          itemCount: items.length,
-                          itemExtent: 80,
-                          itemBuilder: (_, i) {
-                            final r = items[i];
-                            final bg = Color(r.colorValue);
-                            final fg = _textColorForBackground(bg);
-                            return Container(
-                              margin:
-                                  const EdgeInsets.symmetric(vertical: 6),
-                              decoration: BoxDecoration(
-                                color: bg,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: ListTile(
-                                leading: Checkbox(
-                                  value: r.completed,
-                                  onChanged: (v) =>
-                                      _toggleCompleted(r.id, v),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Lista de recordatorios
+              Expanded(
+                child: ValueListenableBuilder<Box<Reminder>>(
+                  valueListenable:
+                      Hive.box<Reminder>('remindersBox').listenable(),
+                  builder: (_, box, __) {
+                    final items = box.values.toList();
+                    if (items.isEmpty) {
+                      return const Center(
+                        child: Text('No tienes tareas pendientes'),
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Tus Tareas',
+                            style: TextStyle(fontSize: 18)),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: ListView.builder(
+                            key: const PageStorageKey('tareas'),
+                            itemCount: items.length,
+                            itemExtent: 80,
+                            itemBuilder: (_, i) {
+                              final r = items[i];
+                              final bg = Color(r.colorValue);
+                              final fg = _textColorForBackground(bg);
+                              return Container(
+                                margin:
+                                    const EdgeInsets.symmetric(vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: bg,
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                title: Text(
-                                  r.title,
-                                  style: TextStyle(
-                                    color: fg,
-                                    decoration: r.completed
-                                        ? TextDecoration.lineThrough
-                                        : TextDecoration.none,
+                                child: ListTile(
+                                  leading: Checkbox(
+                                    value: r.completed,
+                                    onChanged: (v) =>
+                                        _toggleCompleted(r.id, v),
+                                  ),
+                                  title: Text(
+                                    r.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: fg,
+                                      decoration: r.completed
+                                          ? TextDecoration.lineThrough
+                                          : TextDecoration.none,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${r.hour.toString().padLeft(2, '0')}:'
+                                    '${r.minute.toString().padLeft(2, '0')} ‧ '
+                                    '${r.message}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: fg.withOpacity(0.9),
+                                      decoration: r.completed
+                                          ? TextDecoration.lineThrough
+                                          : TextDecoration.none,
+                                    ),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: Icon(Icons.delete, color: fg),
+                                    onPressed: () => _delete(r.id),
                                   ),
                                 ),
-                                subtitle: Text(
-                                  '${r.hour.toString().padLeft(2, '0')}:'
-                                  '${r.minute.toString().padLeft(2, '0')} ‧ ${r.message}',
-                                  style: TextStyle(
-                                    color: fg.withOpacity(0.9),
-                                    decoration: r.completed
-                                        ? TextDecoration.lineThrough
-                                        : TextDecoration.none,
-                                  ),
-                                ),
-                                trailing: IconButton(
-                                  icon: Icon(Icons.delete, color: fg),
-                                  onPressed: () => _delete(r.id),
-                                ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            if (_showForm)
-              _buildForm()
-            else
-              Column(
-                children: [
-                  _buildAddButton(),
-                  const SizedBox(height: 8),
-                  
-                ],
-              ),
-          ],
+              // Botón o formulario
+              if (_showForm)
+                Expanded(child: _buildForm())
+              else
+                _buildAddButton(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAddButton() => ElevatedButton.icon(
-        icon: const Icon(Icons.add),
-        label: const Text('Crear Tarea'),
-        onPressed: () => setState(() => _showForm = true),
-      );
+  Widget _buildAddButton() {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.add),
+      label: const Text('Crear Tarea'),
+      onPressed: () => setState(() => _showForm = true),
+    );
+  }
 
-  Widget _buildForm() => SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _titleCtrl,
-              decoration: const InputDecoration(labelText: 'Título'),
+  Widget _buildForm() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _titleCtrl,
+            decoration: const InputDecoration(labelText: 'Título'),
+            maxLines: 1,
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(50),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _msgCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Descripción',
+              counterText: '',
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _msgCtrl,
-              decoration: const InputDecoration(labelText: 'Descripción'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Text('Hora:'),
-                const SizedBox(width: 12),
-                Text(
-                  '${_pickedTime.hour.toString().padLeft(2, '0')}:'
-                  '${_pickedTime.minute.toString().padLeft(2, '0')}',
-                ),
-                const SizedBox(width: 16),
-                OutlinedButton(
-                  onPressed: _pickTime,
-                  child: const Text('Seleccionar Hora'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Text('Color:'),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 56,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _availableColors.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) {
-                  final color = _availableColors[i];
-                  final isSelected = color == _selectedColor;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedColor = color),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: isSelected
-                            ? Border.all(width: 3, color: Colors.grey.shade700)
-                            : null,
-                      ),
-                      child: isSelected
-                          ? Icon(Icons.check,
-                              size: 20,
-                              color: _textColorForBackground(color))
+            maxLength: 20,
+            maxLines: 1,
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(20),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text('Hora:'),
+              const SizedBox(width: 12),
+              Text(
+                '${_pickedTime.hour.toString().padLeft(2, '0')}:'
+                '${_pickedTime.minute.toString().padLeft(2, '0')}',
+              ),
+              const SizedBox(width: 16),
+              OutlinedButton(
+                onPressed: _pickTime,
+                child: const Text('Seleccionar Hora'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text('Color:'),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 56,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _availableColors.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final color = _availableColors[i];
+                final isSelected = color == _selectedColor;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedColor = color),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: isSelected
+                          ? Border.all(width: 3, color: Colors.grey.shade700)
                           : null,
                     ),
-                  );
-                },
+                    child: isSelected
+                        ? Icon(
+                            Icons.check,
+                            size: 20,
+                            color: _textColorForBackground(color),
+                          )
+                        : null,
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ElevatedButton(onPressed: _save, child: const Text('Guardar')),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: () => setState(() => _showForm = false),
+                child: const Text('Cancelar'),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                ElevatedButton(onPressed: _save, child: const Text('Guardar')),
-                const SizedBox(width: 12),
-                OutlinedButton(
-                  onPressed: () => setState(() => _showForm = false),
-                  child: const Text('Cancelar'),
-                ),
-              ],
-            ),
-            SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
-          ],
-        ),
-      );
+            ],
+          ),
+          // Empuja el contenido cuando aparece el teclado
+          SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+        ],
+      ),
+    );
+  }
 }
